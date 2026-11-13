@@ -1,0 +1,80 @@
+name: Mi Band 7 regression and APK
+
+on:
+  push:
+    branches: [fix/mi-band-7-nfc-ble]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mi-band-7-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Mi Band 7 regression tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Install FVM
+        run: dart pub global activate fvm
+      - name: Install pinned Flutter SDK
+        run: fvm install
+      - name: Install dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      - name: Analyze changed modules
+        run: >-
+          fvm flutter analyze --no-pub --fatal-warnings --no-fatal-infos
+          lib/src/device/zeppos/zeppos_device_catalog.dart
+          lib/src/features/devices/controllers/device_manager.dart
+          test/device/zeppos/zeppos_device_catalog_test.dart
+          test/features/devices/controllers/device_manager_connection_test.dart
+      - name: Run device recognition and import regressions
+        run: >-
+          fvm flutter test --no-pub --reporter expanded
+          test/device/zeppos/zeppos_device_catalog_test.dart
+          test/features/devices/controllers/device_manager_connection_test.dart
+
+  build-android:
+    name: Android arm64 test APK (debug signed)
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dart-lang/setup-dart@v1
+      - name: Install FVM
+        run: dart pub global activate fvm
+      - name: Install pinned Flutter SDK
+        run: fvm install
+      - name: Install dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      # Disposable attestation isolates test APKs from production credentials.
+      - name: Build test APK with a disposable attestation key
+        shell: bash
+        run: |
+          set -euo pipefail
+          OB_RELEASE_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$OB_RELEASE_KEY"
+          export OB_RELEASE_KEY
+          fvm exec bash tool/build_android.sh --dev --format apk --abi arm64-v8a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mi-band-7-android-arm64-${{ github.sha }}
+          path: build/release/*.apk
+          if-no-files-found: error
+          retention-days: 7

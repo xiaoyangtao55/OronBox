@@ -1,4 +1,4 @@
-name: ZeppOS capability checks
+name: ZeppOS capability checks and APK
 on:
   push:
     branches: [ci/zeppos-capability-gating]
@@ -39,3 +39,43 @@ jobs:
           test/device/zeppos
           test/features/devices/controllers/device_manager_connection_test.dart
           test/features/devices/services/xiaomi_automatic_sync_service_test.dart
+
+  build-android:
+    name: Android arm64 test APK (debug signed)
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dart-lang/setup-dart@v1
+      - name: Install FVM
+        run: dart pub global activate fvm
+      - name: Install pinned Flutter
+        run: fvm install
+      - name: Install dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      # Test-only attestation; never use production credentials for this APK.
+      - name: Build test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          OB_RELEASE_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          echo "::add-mask::$OB_RELEASE_KEY"
+          export OB_RELEASE_KEY
+          fvm exec bash tool/build_android.sh --dev --format apk --abi arm64-v8a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zeppos-capability-android-arm64-${{ github.sha }}
+          path: build/release/*.apk
+          if-no-files-found: error
+          retention-days: 7

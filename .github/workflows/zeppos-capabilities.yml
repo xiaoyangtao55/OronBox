@@ -1,0 +1,41 @@
+name: ZeppOS capability checks
+on:
+  push:
+    branches: [ci/zeppos-capability-gating]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: zeppos-capabilities-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Install FVM
+        run: dart pub global activate fvm
+      - name: Install pinned Flutter
+        run: fvm install
+      - name: Install dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      - name: Analyze changed modules
+        run: >-
+          fvm flutter analyze --no-pub --fatal-warnings --no-fatal-infos
+          lib/src/device/zeppos/zeppos_capabilities.dart
+          lib/src/device/zeppos/zeppos_device_factory.dart
+          lib/src/features/devices/controllers/device_manager.dart
+          lib/src/features/devices/pages/devices_page.dart
+          lib/src/features/devices/pages/tools/zeppos_more_features_page.dart
+          lib/src/features/devices/services/xiaomi_automatic_sync_service.dart
+          test/device/zeppos/zeppos_capabilities_test.dart
+          test/features/devices/services/xiaomi_automatic_sync_service_test.dart
+      - name: Regression tests
+        if: ${{ !cancelled() }}
+        run: >-
+          fvm flutter test --no-pub --reporter expanded
+          test/device/zeppos
+          test/features/devices/controllers/device_manager_connection_test.dart
+          test/features/devices/services/xiaomi_automatic_sync_service_test.dart

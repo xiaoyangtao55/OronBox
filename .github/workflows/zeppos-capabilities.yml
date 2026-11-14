@@ -24,7 +24,16 @@ jobs:
       - name: Analyze changed modules
         run: >-
           fvm flutter analyze --no-pub --fatal-warnings --no-fatal-infos
-          lib/src/device/zeppos/zeppos_capabilities.dart
+          lib/src/device/zeppos
+          lib/src/device/core/event_bus.dart
+          lib/src/command_bus/local_command_bus.dart
+          lib/src/app/router/app_router.dart
+          lib/src/features/devices/models/device_manager_state.dart
+          lib/src/features/devices/pages/tools/zeppos_alarms_page.dart
+          lib/src/features/devices/services/phone_finder.dart
+          test/device/zeppos
+          test/features/devices/pages/zeppos_alarms_page_test.dart
+          test/features/devices/services/phone_finder_test.dart
           lib/src/device/zeppos/zeppos_device_factory.dart
           lib/src/features/devices/controllers/device_manager.dart
           lib/src/features/devices/pages/devices_page.dart

@@ -47,6 +47,8 @@ jobs:
           fvm flutter test --no-pub --reporter expanded
           test/device/zeppos
           test/features/devices/controllers/device_manager_connection_test.dart
+          test/features/devices/pages/zeppos_alarms_page_test.dart
+          test/features/devices/services/phone_finder_test.dart
           test/features/devices/services/xiaomi_automatic_sync_service_test.dart
 
   build-android:
